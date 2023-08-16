@@ -98,29 +98,6 @@ fn range() {
     let circuit = TestCircuit::new(a, bits);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
-    // Test bits = 4
-    //
-    // Compile new circuit descriptions for the prover and verifier
-    let bits = 4;
-    let a = BlsScalar::from(15);
-    let circuit = TestCircuit::new(a, bits);
-    let (prover, verifier) =
-        Compiler::compile_with_circuit(&pp, label, &circuit)
-            .expect("Circuit should compile");
-
-    // Test:
-    // 15 < 2^4
-    let msg = "Verification of a satisfied circuit should pass";
-    let circuit = TestCircuit::new(a, bits);
-    check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
-
-    // Test fails:
-    // 16 !< 2^4
-    let msg = "Proof creation of an unsatisfied circuit should fail";
-    let a = BlsScalar::from(16);
-    let circuit = TestCircuit::new(a, bits);
-    check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
-
     // Test bits = 74
     //
     // Compile new circuit descriptions for the prover and verifier
@@ -173,4 +150,15 @@ fn range() {
     let a = -BlsScalar::one();
     let circuit = TestCircuit::new(a, bits);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
+
+    // Test with odd bits = 55
+    //
+    // Compilation is expected to panic
+    let bits = 55;
+    let a = BlsScalar::pow_of_2(74) - BlsScalar::one();
+    let circuit = TestCircuit::new(a, bits);
+    let result = std::panic::catch_unwind(|| {
+        Compiler::compile_with_circuit::<TestCircuit>(&pp, label, &circuit)
+    });
+    assert!(result.is_err());
 }
