@@ -129,7 +129,7 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ) -> Witness {
         // the bits are iterated as chunks of two; hence, we require an even
         // number
-        debug_assert_eq!(num_bits & 1, 0);
+        assert_eq!(num_bits & 1, 0, "number of bits must be even");
 
         let num_bits = cmp::min(num_bits, 256);
         let num_quads = num_bits >> 1;
