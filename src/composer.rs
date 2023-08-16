@@ -272,7 +272,13 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         let width = 2;
         let wnaf_entries = scalar.compute_windowed_naf(width);
 
-        debug_assert_eq!(wnaf_entries.len(), bits);
+        // this will pass as long as `compute_windowed_naf` returns an array
+        // with 256 elements
+        debug_assert_eq!(
+            wnaf_entries.len(),
+            bits,
+            "the wnaf_entries array is expected to be 256 elements long"
+        );
 
         // initialize the accumulators
         let mut scalar_acc = vec![BlsScalar::zero()];
