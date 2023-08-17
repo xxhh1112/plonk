@@ -105,10 +105,10 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
         self.append_custom_gate_internal(constraint)
     }
 
-    /// Performs a logical AND or XOR op between the inputs provided for the
-    /// specified number of bits (counting from the least significant bit).
+    /// Performs a logical AND or XOR op between the inputs provided for
+    /// `num_bits = BIT_PAIRS * 2` bits (counting from the least significant).
     ///
-    /// Each logic gate adds `(num_bits / 2) + 1` gates to the circuit to
+    /// Each logic gate adds `BIT_PAIRS + 1` gates to the circuit to
     /// perform the whole operation.
     ///
     /// ## Constraint
@@ -116,22 +116,15 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     ///   `a` and `b`.
     /// - is_component_xor = 0 -> Performs AND between the first `num_bits` for
     ///   `a` and `b`.
-    ///
-    /// # Panics
-    /// This function will panic if the num_bits specified is not even, ie.
-    /// `num_bits % 2 != 0`.
-    fn append_logic_component(
+    fn append_logic_component<const BIT_PAIRS: usize>(
         &mut self,
         a: Witness,
         b: Witness,
-        num_bits: usize,
         is_component_xor: bool,
     ) -> Witness {
         // the bits are iterated as chunks of two; hence, we require an even
         // number
-        assert_eq!(num_bits & 1, 0, "number of bits must be even");
-
-        let num_bits = cmp::min(num_bits, 256);
+        let num_bits = cmp::min(BIT_PAIRS * 2, 256);
         let num_quads = num_bits >> 1;
 
         let bls_four = BlsScalar::from(4u64);
@@ -593,13 +586,12 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
-    fn append_logic_and(
+    fn append_logic_and<const BIT_PAIRS: usize>(
         &mut self,
         a: Witness,
         b: Witness,
-        num_bits: usize,
     ) -> Witness {
-        self.append_logic_component(a, b, num_bits, false)
+        self.append_logic_component::<BIT_PAIRS>(a, b, false)
     }
 
     /// Adds a logical XOR gate that performs the XOR between two values for the
@@ -609,13 +601,12 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     /// # Panics
     ///
     /// If the `num_bits` specified in the fn params is odd.
-    fn append_logic_xor(
+    fn append_logic_xor<const BIT_PAIRS: usize>(
         &mut self,
         a: Witness,
         b: Witness,
-        num_bits: usize,
     ) -> Witness {
-        self.append_logic_component(a, b, num_bits, true)
+        self.append_logic_component::<BIT_PAIRS>(a, b, true)
     }
 
     /// Constrain `a` to be equal to `constant + pi`.
@@ -919,19 +910,18 @@ pub trait Composer: Sized + Index<Witness, Output = BlsScalar> {
     }
 
     /// Adds a range-constraint gate that checks and constrains a [`Witness`]
-    /// to be encoded in at most `num_bits`, which means that the value of the
-    /// [`Witness`] will be within the range `[0, 2^num_bits[`.
+    /// to be encoded in at most `num_bits = BIT_PAIRS * 2` bits, which means
+    /// that the underlying [`BlsScalar`] of the [`Witness`] will be within the
+    /// range `[0, 2^num_bits[`, where `num_bits` is dividable by two.
     ///
-    /// This function adds (num_bits - 1)/8 + 9 gates to the circuit
-    /// description, when num_bits > 0,
-    /// and 7 gates when num_bits = 0
-    ///
-    ///# Panics
-    /// This function will panic if the num_bits specified is not even since
-    /// that results in potentially incorrect circuits:
-    /// A circuit constraining 63 < 2^5 for example would validate to true.
-    fn component_range(&mut self, witness: Witness, num_bits: usize) {
-        assert_eq!(num_bits & 1, 0, "number of bits must be even");
+    /// This function adds:
+    /// (num_bits - 1)/8 + 9 gates, when num_bits > 0,
+    /// and 7 gates, when num_bits = 0
+    /// to the circuit description.
+    fn component_range<const BIT_PAIRS: usize>(&mut self, witness: Witness) {
+        // the bits are iterated as chunks of two; hence, we require an even
+        // number
+        let num_bits = cmp::min(BIT_PAIRS * 2, 256);
 
         // if num_bits = 0 constrain witness to 0
         if num_bits == 0 {

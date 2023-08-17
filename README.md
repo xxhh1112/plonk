@@ -50,8 +50,10 @@ impl Circuit for TestCircuit {
         composer.append_gate(constraint);
 
         // Check that a and b are in range
-        composer.component_range(a, 6);
-        composer.component_range(b, 4);
+        const HALF_SIX: usize = 3;
+        composer.component_range::<HALF_SIX>(a);
+        const HALF_FOUR: usize = 2;
+        composer.component_range::<HALF_FOUR>(b);
 
         // Make second constraint a * b = d
         let constraint =

@@ -14,25 +14,24 @@ use common::{check_satisfied_circuit, check_unsatisfied_circuit};
 #[test]
 fn range() {
     #[derive(Default)]
-    pub struct TestCircuit {
+    pub struct TestCircuit<const BIT_PAIRS: usize> {
         a: BlsScalar,
-        bits: usize,
     }
 
-    impl TestCircuit {
-        pub fn new(a: BlsScalar, bits: usize) -> Self {
-            Self { a, bits }
+    impl<const BIT_PAIRS: usize> TestCircuit<BIT_PAIRS> {
+        pub fn new(a: BlsScalar) -> Self {
+            Self { a }
         }
     }
 
-    impl Circuit for TestCircuit {
+    impl<const BIT_PAIRS: usize> Circuit for TestCircuit<BIT_PAIRS> {
         fn circuit<C>(&self, composer: &mut C) -> Result<(), Error>
         where
             C: Composer,
         {
             let w_a = composer.append_witness(self.a);
 
-            composer.component_range(w_a, self.bits);
+            composer.component_range::<BIT_PAIRS>(w_a);
 
             Ok(())
         }
@@ -45,7 +44,7 @@ fn range() {
     let capacity = 1 << 6;
     let pp = PublicParameters::setup(capacity, rng)
         .expect("Creation of public parameter shouldn't fail");
-    let (prover, verifier) = Compiler::compile::<TestCircuit>(&pp, label)
+    let (prover, verifier) = Compiler::compile::<TestCircuit<0>>(&pp, label)
         .expect("Circuit should compile");
 
     // public input to be used by all tests
@@ -56,15 +55,14 @@ fn range() {
     // Test default works:
     // 0 < 2^0
     let msg = "Default circuit verification should pass";
-    let circuit = TestCircuit::default();
+    let circuit = TestCircuit::<0>::default();
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test:
     // 1 < 2^0
     let msg = "Verification of satisfied circuit should pass";
-    let bits = 0;
     let a = BlsScalar::one();
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<0> = TestCircuit::new(a);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
     // Test:
@@ -72,15 +70,15 @@ fn range() {
     let msg = "Unsatisfied circuit should fail";
     let a = BlsScalar::random(rng);
     assert!(a != BlsScalar::zero());
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<0> = TestCircuit::new(a);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
     // Test bits = 2
     //
     // Compile new circuit descriptions for the prover and verifier
-    let bits = 2;
+    const BIT_PAIRS_1: usize = 1;
     let a = BlsScalar::one();
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_1> = TestCircuit::new(a);
     let (prover, verifier) =
         Compiler::compile_with_circuit(&pp, label, &circuit)
             .expect("Circuit should compile");
@@ -88,22 +86,22 @@ fn range() {
     // Test:
     // 1 < 2^2
     let msg = "Verification of a satisfied circuit should pass";
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_1> = TestCircuit::new(a);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test fails:
     // 4 !< 2^2
     let msg = "Proof creation of an unsatisfied circuit should fail";
     let a = BlsScalar::from(4);
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_1> = TestCircuit::new(a);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
     // Test bits = 74
     //
     // Compile new circuit descriptions for the prover and verifier
-    let bits = 74;
+    const BIT_PAIRS_37: usize = 37;
     let a = BlsScalar::pow_of_2(73);
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_37> = TestCircuit::new(a);
     let (prover, verifier) =
         Compiler::compile_with_circuit(&pp, label, &circuit)
             .expect("Circuit should compile");
@@ -111,29 +109,29 @@ fn range() {
     // Test:
     // 2^73 < 2^74
     let msg = "Verification of a satisfied circuit should pass";
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_37> = TestCircuit::new(a);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test:
     // 2^74 - 1 < 2^74
     let msg = "Verification of a satisfied circuit should pass";
     let a = BlsScalar::pow_of_2(74) - BlsScalar::one();
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_37> = TestCircuit::new(a);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test fails:
     // 2^74 !< 2^74
     let msg = "Proof creation of an unsatisfied circuit should fail";
     let a = BlsScalar::pow_of_2(74);
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_37> = TestCircuit::new(a);
     check_unsatisfied_circuit(&prover, &circuit, rng, &msg);
 
     // Test bits = 256
     //
     // Compile new circuit descriptions for the prover and verifier
-    let bits = 256;
+    const BIT_PAIRS_128: usize = 128;
     let a = BlsScalar::pow_of_2(255);
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_128> = TestCircuit::new(a);
     let (prover, verifier) =
         Compiler::compile_with_circuit(&pp, label, &circuit)
             .expect("Circuit should compile");
@@ -141,24 +139,13 @@ fn range() {
     // Test:
     // 2^255 < 2^256
     let msg = "Verification of a satisfied circuit should pass";
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_128> = TestCircuit::new(a);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
 
     // Test:
     // -bls(1) < 2^256
     let msg = "Verification of a satisfied circuit should pass";
     let a = -BlsScalar::one();
-    let circuit = TestCircuit::new(a, bits);
+    let circuit: TestCircuit<BIT_PAIRS_128> = TestCircuit::new(a);
     check_satisfied_circuit(&prover, &verifier, &pi, &circuit, rng, &msg);
-
-    // Test with odd bits = 55
-    //
-    // Compilation is expected to panic
-    let bits = 55;
-    let a = BlsScalar::pow_of_2(74) - BlsScalar::one();
-    let circuit = TestCircuit::new(a, bits);
-    let result = std::panic::catch_unwind(|| {
-        Compiler::compile_with_circuit::<TestCircuit>(&pp, label, &circuit)
-    });
-    assert!(result.is_err());
 }
